@@ -5,16 +5,18 @@ date: "23-04-2015"
 output: html_document
 ---
 
-** Introduction **
+**Introduction**
 
 This document is the "Prediction Assignment Writeup" for the coursera course "Practical Machine Learning". For background information on the assignment please refer to the course description.
 
-** Data Description **
+**Data Description**
+
 taken from [http://groupware.les.inf.puc-rio.br/har]
-*** Weight Lifting Exercises Dataset *** 
+
+**Weight Lifting Exercises Dataset**
 
 
-**** On-body sensing schema **** 
+**On-body sensing schema**
 
 This human activity recognition research has traditionally focused on discriminating between different activities, i.e. to predict "which" activity was performed at a specific point in time (like with the Daily Living Activities dataset above). The approach we propose for the Weight Lifting Exercises dataset is to investigate "how (well)" an activity was performed by the wearer. The "how (well)" investigation has only received little attention so far, even though it potentially provides useful information for a large variety of applications,such as sports training.
 
@@ -24,7 +26,7 @@ Six young health participants were asked to perform one set of 10 repetitions of
 
 Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes. Participants were supervised by an experienced weight lifter to make sure the execution complied to the manner they were supposed to simulate. The exercises were performed by six male participants aged between 20-28 years, with little weight lifting experience. We made sure that all participants could easily simulate the mistakes in a safe and controlled manner by using a relatively light dumbbell (1.25kg).
 
-** Preparation of the dataset ***
+**Preparation of the dataset***
 
 ```{r}
 library(caret)
@@ -36,20 +38,25 @@ library(randomForest)
 set.seed(147852)
 
 #Load the training data
-trainingData = read.csv(url("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv");
+trainingData = read.csv("pml-training.csv");
 ```
 
-*** Data set analysis ***
-Initialy I tendend towards the data contained in the rows that have the new_window variable set to yes. Unfortunately the test data does not contain this value. This leads to all columns that are only filled when the latter are non-informative.
+**Data set analysis**
 
-Next all near zero values are removed from the data set and the column number since that is non informative.
+First all near zero values are removed from the data set and the column number since that is non informative.
+
+Initialy I tendend towards the data contained in the rows that have the new_window variable set to yes. Unfortunately the test data does not contain this value. 
+This leads to all columns that are only filled when the latter are non-informative.
+
+
 
 ```{r}
+#Remove all near zero variables
+trainingData = trainingData[,-nearZeroVar(trainingData[,-150])]
+
 #Remove all elements dat are not informative (i.e. averages and totals)
 trainingData = trainingData[,-grep("^new_|^avg_|^user_name|^raw|^num|^total|^max|^min|^amplitude|^var|^stddev|^cvtd|^kurtosis|^skewness", colnames(trainingData))]
 
-#Remove all near zero variables
-trainingData = trainingData[,-nearZeroVar(trainingData[,-150])]
 
 #Remove column index number
 trainingData = trainingData[,-c(1)]
@@ -57,19 +64,21 @@ trainingData = trainingData[,-c(1)]
 
 This leads to a dataset that contains only 48 (and the result or classe of the row) out of the original variables. 
 
-** Splitting data set **
+**Splitting data set**
+
 In order to create a training and test dataset it needs to be partitioned into training and test data. In this case I choose the standard 60/40 split.
 
 ```{r}
 # Split into training and test data
-inTrain = createDataPartition(y=trainingData$classe,p=0.6, list=FALSE)
+inTrain = createDataPartition(y=trainingData$classe,p=0.75, list=FALSE)
 training = trainingData[inTrain,]
 testing = trainingData[-inTrain,]
 
 rbind("original dataset" = dim(trainingData),"training set" = dim(training))
 ```
 
-** Training the model **
+**Training the model**
+
 Initially I went for a liniar model, but the predictions where not precise enough. The random forest was selected for training. The freebee you get with the forest that cross validation is implicit.
 
 I experimented with the number of trees, a higher number of trees did not lead to a significant degreese in the error rate.
@@ -78,11 +87,22 @@ I experimented with the number of trees, a higher number of trees did not lead t
 #Running on a multicore
 #doMC::registerDoMC(cores=4)
 rf<-randomForest(classe ~ ., data=training, method="rf", prox=TRUE, ntree=300)
+```
+
+Printing of the model shows that an error rate of 0.44% is reached.
+
+```{r}
 print(rf)
+```
+
+The graph shows that the expected indicators are the most important indicators. such as the movement of the belt, i.e. indicating a classe E excercise.
+
+```{r}
 varImpPlot(rf)
 ```
 
-** Running on the test data ** 
+**Running on the test data** 
+
 After model was trained The model is applied to the test data.
 
 ```{r}
@@ -90,9 +110,9 @@ predictions <- predict(rf, testing, type = "class")
 confusionMatrix(predictions, testing$classe)
 ```
 
-The model has an accuracy of 0.9961 and should be more then enough to predict the classe of the excercise.
+The model has an accuracy of 0.99 and should be more then enough to predict the classe of the excercise.
 
-** Getting the results **
+**Getting the results**
 
 The last step, running against the testing dataset is done with the model created.
 
@@ -117,7 +137,8 @@ This places the results in the adviced format in a seperate directory.
 
 
 
-** Notes on performance **
+**Notes on performance**
+
 As can been seen in the code I experimented with running the code in parallel on my Ubuntu system. For some reasons not found by me the RF kept running on a single core.
 
 I used both the doMC package and the parallel and doParallel packages. 
@@ -126,7 +147,7 @@ The doMC has no effect on performance.
 
 Using the parallel and doParallel packages
 Running:
-```{r}
+
 require(parallel)
 require(doParallel)
 cl <- makeCluster(detectCores() - 1)
@@ -137,7 +158,6 @@ print(rf)
 varImpPlot(rf)
 
 stopCluster(cl)
-```
 
 Resulted in a run time of:
    user  system elapsed 
